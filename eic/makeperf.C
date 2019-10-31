@@ -1,20 +1,18 @@
-#include "../prototype/tools.C"
+#include "tools.C"
 void makeperf(){
+  float par[2];
   StatisticalWeightsGaus manager;
-  manager.AddSpecies("pion","TMath::Gaus(x,-300,20)");
-  manager.AddSpecies("kaon","TMath::Gaus(x,0,20)");
-  manager.AddSpecies("proton","TMath::Gaus(x,300,20)");
-  manager.AddSpecies("electron","TMath::Gaus(x,-500,20)");
   manager.SetRange(-1000,1000);
 
-  manager.SetPar(0,1,-300);
-  manager.SetPar(0,2,20);
-  manager.SetPar(1,1,0);
-  manager.SetPar(1,2,20);
-  manager.SetPar(2,1,300);
-  manager.SetPar(2,2,20);
-  manager.SetPar(3,1,-500);
-  manager.SetPar(3,2,20);
+  par[0]=-100, par[1] = 20;
+  manager.AddSpecies("pion",par);
+  par[0]=0, par[1] = 20;
+  manager.AddSpecies("kaon",par);
+  par[0]=100, par[1] = 20;
+  manager.AddSpecies("proton",par);
+  par[0]=-200, par[1] = 20;
+  manager.AddSpecies("electron",par);
+
   manager.Init();
 
   // load priors
