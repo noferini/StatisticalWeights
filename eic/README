@@ -1,0 +1,4 @@
+/EIC/utils/pythia6/mkpypar.sh --electronP 10. --targetP 100.
+agile-runmc Pythia6:HEAD -n 10000 -P pythia.params -o pythia.hepmc
+DelphesHepMC eicTOF.tcl delphes.root pythia.hepmc
+root -b -q -l maketree.C
