@@ -36,6 +36,8 @@ public:
 
   void SetMaskSignal(int i, bool val) {fToBeInitialized = kTRUE; fMaskSignal[i] = val;}
 
+  TMatrix *GetMatrix() {return fMat;}
+
 protected:
   TMatrix *fMat = NULL;
   TMatrix *fMatInv = NULL;
@@ -71,6 +73,17 @@ private:
 };
 
 class StatisticalManager{
+public:
+  bool AddDiscriminator(StatisticalWeights *dis) {if(fNum < 499){ fDiscriminators[fNum] = dis; fNum++; fRedoMatrix=kTRUE; fToBeInitialized=kTRUE; return 1;} else return 0;} 
+  Float_t GetWeight(Int_t i, Float_t *x);
+  void Init();
+private:
+  int fNum = 0;
+  StatisticalWeights *fDiscriminators[500];
+  TMatrix *fMat = NULL;
+  TMatrix *fMatInv = NULL;
+  Bool_t fToBeInitialized = kTRUE;
+  Bool_t fRedoMatrix = kTRUE;
 };
 
 
@@ -131,7 +144,7 @@ void StatisticalWeights::Init(){
 
   fMatInv->Invert();
 
-  if(fRedoMatrix){
+  if(fRedoMatrix && 0){
     fMat->Print();
     fMatInv->Print();
   }
@@ -161,7 +174,7 @@ void StatisticalWeightsGaus::Init(){
 
   fMatInv->Invert();
 
-  if(fRedoMatrix){
+  if(fRedoMatrix && 0){
     fMat->Print();
     fMatInv->Print();
   }
@@ -210,6 +223,50 @@ Float_t StatisticalWeights::GetWeight(Int_t i, Float_t x){
     weight += (*fMatInv)[i][j] * Eval(j,x);
   }
 
+  return weight;
+}
+
+void StatisticalManager::Init(){
+  if (fNum < 1) return;
+  if(fRedoMatrix){
+    if(fMat) delete fMat;
+    if(fMatInv) delete fMatInv;
+    fDiscriminators[0]->Init();
+    TMatrix *mm = fDiscriminators[0]->GetMatrix(); 
+    fMat = new TMatrix(fDiscriminators[0]->GetNspecies(),fDiscriminators[0]->GetNspecies());
+    *fMat = *mm;
+    fMatInv = new TMatrix(fDiscriminators[0]->GetNspecies(),fDiscriminators[0]->GetNspecies());
+    
+   for(int i=1; i < fNum; i++){
+      fDiscriminators[i]->Init();    
+
+      for(int ii=0; ii < fDiscriminators[i]->GetNspecies(); ii++)
+	for(int jj=0; jj < fDiscriminators[i]->GetNspecies(); jj++)
+	  (*fMat)[ii][jj] *= (*(fDiscriminators[i]->GetMatrix()))[ii][jj];
+    } 
+  }
+
+  (*fMatInv) = (*fMat);
+  fMatInv->Invert();
+  
+  if(fRedoMatrix && 0){
+    fMat->Print();
+    fMatInv->Print();
+  }
+  fToBeInitialized = kFALSE;
+  fRedoMatrix = kFALSE;
+}
+
+Float_t StatisticalManager::GetWeight(Int_t i, Float_t *x){
+  if(fToBeInitialized) Init();
+  Float_t weight = 0;
+  for(Int_t j=0; j < fDiscriminators[0]->GetNspecies(); j++){
+    float resp = 1;
+    for(int iDis=0; iDis < fNum; iDis++){
+      resp *= fDiscriminators[iDis]->Eval(j,x[iDis]);
+    }
+    weight += (*fMatInv)[i][j] * resp;
+  }
   return weight;
 }
 
