@@ -1,14 +1,17 @@
 #include "TF1.h"
 #include "TMatrix.h"
 #include "TMath.h"
+#include "TH1F.h"
 
 class StatisticalWeights{
 public:
   int GetNspecies() const {return fNspecies;}
   void AddSpecies(const char *name,const char *formula, double priors=1);
   virtual void AddSpecies(const char *name,double *par, double priors=1);
+  virtual void AddSpecies(const char *name,TH1F *h, double priors=1);
   virtual void AddSignal(int species, const char* formula);
   virtual void AddSignal(int species,double *par){printf("Parameteric add signal not vali for base class\n");}
+  virtual void AddSignal(int species,TH1F *h){printf("TH1F add signal not vali for base class\n");}
 
   TF1* GetResponse(int i,int j=0) {return fResponse[i][j];} 
   const char* GetName(int i) const {if(!fName[i]) return "";return fName[i]->Data();} 
@@ -72,6 +75,18 @@ private:
   double fSigmaInv[100][100];
 };
 
+class StatisticalWeightsHisto : public StatisticalWeights{
+public:
+  void AddSignal(int species, const char* formula){printf("Invalid AddSignal with formula for Histo derived class\n");}
+  void AddSignal(int species,double *par) {printf("Invalid AddSignal with parameters for Histo derived class\n");}
+  void AddSignal(int species, TH1F *h);
+  Double_t GetScalarProduct(Int_t i, Int_t j);
+  void Init();
+  Double_t Eval(Int_t i, Double_t x, Int_t isig=0) {return fH[i][isig]->GetBinContent(fH[i][isig]->FindBin(x));}
+private:
+  TH1F *fH[100][100];
+};
+
 class StatisticalManager{
 public:
   bool AddDiscriminator(StatisticalWeights *dis) {if(fNum < 4999){ fDiscriminators[fNum] = dis; fNum++; fRedoMatrix=kTRUE; fToBeInitialized=kTRUE; return 1;} else return 0;} 
@@ -87,6 +102,29 @@ private:
   Bool_t fRedoMatrix = kTRUE;
 };
 
+
+
+void StatisticalWeightsHisto::AddSignal(int species, TH1F *h){
+  if(species >= fNspecies || fSignalFilled[species]==100) return;
+  h->Scale(1./h->Integral());
+  fH[species][fSignalFilled[species]] = h;
+  fMaskSignal[fSignalFilled[species]] = 1;
+  fSignalFilled[species]++;
+}
+
+Double_t StatisticalWeightsHisto::GetScalarProduct(Int_t i, Int_t j){
+  if(i >= fNspecies || j >= fNspecies) return 0;
+  double sp=1;
+  for(int k=0;k < fSignalFilled[i];k++){
+    double sum=0;
+    if(! fMaskSignal[k]) continue;
+    for(int ii=1; ii <= fH[i][k]->GetNbinsX(); ii++){
+      sum += fH[i][k]->GetBinContent(ii) * fH[j][k]->GetBinContent(ii);
+    }
+    sp *= sum;
+  }
+  return sp;
+}
 
 void StatisticalWeights::AddSpecies(const char *name,const char *formula, double priors){
   if(fNspecies == 100) return;
@@ -105,6 +143,19 @@ void StatisticalWeights::AddSpecies(const char *name,const char *formula, double
   
 }
 
+void StatisticalWeights::AddSpecies(const char *name,TH1F *h, double priors){
+  if(fNspecies == 100) return;
+  
+  fName[fNspecies] = new TString(name);
+  fSignalFilled[fNspecies]=0;
+  fPriors[fNspecies]=priors;
+  fNspecies++;
+  fToBeInitialized = kTRUE;
+  fRedoMatrix = kTRUE;
+
+  AddSignal(fNspecies-1,h);
+}
+
 void StatisticalWeights::AddSignal(int species, const char* formula){
   if(species >= fNspecies || fSignalFilled[species]==100) return;
   fResponse[species][fSignalFilled[species]] = new TF1(Form("f_%s_%d",fName[species]->Data(),fSignalFilled[species]),Form("(%s)*[0]",formula));
@@ -113,6 +164,34 @@ void StatisticalWeights::AddSignal(int species, const char* formula){
   fResponse[species][fSignalFilled[species]]->SetRange(fXmin,fXmax);
   fMaskSignal[fSignalFilled[species]] = 1;
   fSignalFilled[species]++;
+}
+
+void StatisticalWeightsHisto::Init(){
+  if(fRedoMatrix){
+    if(fMat) delete fMat;
+    if(fMatInv) delete fMatInv;
+    
+    fMat = new TMatrixD(fNspecies,fNspecies);
+    fMatInv = new TMatrixD(fNspecies,fNspecies);
+  }
+
+  for(Int_t i=0; i < fNspecies; i++){
+    for(Int_t j=i; j < fNspecies; j++){
+      (*fMat)[i][j] = this->GetScalarProduct(i,j);
+      (*fMat)[j][i] = (*fMat)[i][j];
+      (*fMatInv)[i][j] = (*fMat)[i][j];
+      (*fMatInv)[j][i] = (*fMat)[i][j];
+    }
+  }
+
+  fMatInv->Invert();
+
+  if(fRedoMatrix && 0){
+    fMat->Print();
+    fMatInv->Print();
+  }
+  fToBeInitialized = kFALSE;
+  fRedoMatrix = kFALSE;
 }
 
 void StatisticalWeights::Init(){
