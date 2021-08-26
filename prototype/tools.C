@@ -5,42 +5,42 @@
 class StatisticalWeights{
 public:
   int GetNspecies() const {return fNspecies;}
-  void AddSpecies(const char *name,const char *formula, float priors=1);
-  virtual void AddSpecies(const char *name,float *par, float priors=1);
+  void AddSpecies(const char *name,const char *formula, double priors=1);
+  virtual void AddSpecies(const char *name,double *par, double priors=1);
   virtual void AddSignal(int species, const char* formula);
-  virtual void AddSignal(int species,float *par){printf("Parameteric add signal not vali for base class\n");}
+  virtual void AddSignal(int species,double *par){printf("Parameteric add signal not vali for base class\n");}
 
   TF1* GetResponse(int i,int j=0) {return fResponse[i][j];} 
   const char* GetName(int i) const {if(!fName[i]) return "";return fName[i]->Data();} 
 
-  void SetRange(Float_t xmin, Float_t xmax) {fXmin=xmin; fXmax = xmax;
+  void SetRange(Double_t xmin, Double_t xmax) {fXmin=xmin; fXmax = xmax;
     for(int i=0; i < fNspecies;i++)   fResponse[i][0]->SetRange(fXmin,fXmax); }
-  void SetXbin(Float_t xbin) {fXbin=xbin;}
-  Float_t GetXmin() const {return fXmin;}
-  Float_t GetXmax() const {return fXmax;}
-  Float_t GetXbin() const {return fXbin;}
+  void SetXbin(Double_t xbin) {fXbin=xbin;}
+  Double_t GetXmin() const {return fXmin;}
+  Double_t GetXmax() const {return fXmax;}
+  Double_t GetXbin() const {return fXbin;}
 
-  virtual void SetPar(int isp, int par, float value, int isig=0);
+  virtual void SetPar(int isp, int par, double value, int isig=0);
 
   virtual void Init();
-  virtual Float_t Eval(Int_t i, Float_t x, Int_t isig=0);
+  virtual Double_t Eval(Int_t i, Double_t x, Int_t isig=0);
 
-  Float_t GetWeight(Int_t i, Float_t x);
-  Float_t GetWeight(Int_t i, Float_t *x);
-  Float_t GetBayesWeight(Int_t i, Float_t x);
-  Float_t GetBayesWeight(Int_t i, Float_t *x);
+  Double_t GetWeight(Int_t i, Double_t x);
+  Double_t GetWeight(Int_t i, Double_t *x);
+  Double_t GetBayesWeight(Int_t i, Double_t x);
+  Double_t GetBayesWeight(Int_t i, Double_t *x);
 
-  void SetPriors(Int_t i, Float_t x){if(i >= fNspecies) return; fPriors[i] = x;}
+  void SetPriors(Int_t i, Double_t x){if(i >= fNspecies) return; fPriors[i] = x;}
 
   virtual Double_t GetScalarProduct(Int_t i, Int_t j);
 
   void SetMaskSignal(int i, bool val) {fToBeInitialized = kTRUE; fMaskSignal[i] = val;}
 
-  TMatrix *GetMatrix() {return fMat;}
+  TMatrixD *GetMatrix() {return fMat;}
 
 protected:
-  TMatrix *fMat = NULL;
-  TMatrix *fMatInv = NULL;
+  TMatrixD *fMat = NULL;
+  TMatrixD *fMatInv = NULL;
   Bool_t fToBeInitialized = kTRUE;
   Bool_t fRedoMatrix = kTRUE;
   int fNspecies=0;
@@ -49,45 +49,46 @@ protected:
   bool fMaskSignal[100];
   void SetResponse(int i, int j, TF1 *f){fResponse[i][j] = f;}
 private:
-  Float_t fXmin = -5;
-  Float_t fXmax =  5;
-  Float_t fXbin = 0.2;
+  Double_t fXmin = -5;
+  Double_t fXmax =  5;
+  Double_t fXbin = 0.2;
 
   TF1 *fResponse[100][100];
   TString *fName[100];
-  float fPriors[100];
+  double fPriors[100];
 };
 
 class StatisticalWeightsGaus : public StatisticalWeights{
 public:
   void AddSignal(int species, const char* formula){printf("Invalid AddSignal with formula for Gaussian derived class\n");}
-  void AddSignal(int species,float *par);
+  void AddSignal(int species,double *par);
   Double_t GetScalarProduct(Int_t i, Int_t j);
-  void SetPar(int isp, int par, float value, int isig=0);
+  void SetPar(int isp, int par, double value, int isig=0);
   void Init();
-  Float_t Eval(Int_t i, Float_t x, Int_t isig=0) {return TMath::Gaus(x,fMean[i][isig],fSigma[i][isig])*0.39894228*fSigmaInv[i][isig];}
+  Double_t Eval(Int_t i, Double_t x, Int_t isig=0) {return TMath::Gaus(x,fMean[i][isig],fSigma[i][isig])*0.39894228*fSigmaInv[i][isig];}
 private:
-  float fMean[100][100];
-  float fSigma[100][100];
-  float fSigmaInv[100][100];
+  double fMean[100][100];
+  double fSigma[100][100];
+  double fSigmaInv[100][100];
 };
 
 class StatisticalManager{
 public:
-  bool AddDiscriminator(StatisticalWeights *dis) {if(fNum < 499){ fDiscriminators[fNum] = dis; fNum++; fRedoMatrix=kTRUE; fToBeInitialized=kTRUE; return 1;} else return 0;} 
-  Float_t GetWeight(Int_t i, Float_t *x);
+  bool AddDiscriminator(StatisticalWeights *dis) {if(fNum < 4999){ fDiscriminators[fNum] = dis; fNum++; fRedoMatrix=kTRUE; fToBeInitialized=kTRUE; return 1;} else return 0;} 
+  Double_t GetWeight(Int_t i, Double_t *x);
   void Init();
 private:
   int fNum = 0;
-  StatisticalWeights *fDiscriminators[500];
-  TMatrix *fMat = NULL;
-  TMatrix *fMatInv = NULL;
+  StatisticalWeights *fDiscriminators[5000];
+  TMatrixD *fMat = NULL;
+  double fDeterminant;
+  TMatrixD *fMatInv = NULL;
   Bool_t fToBeInitialized = kTRUE;
   Bool_t fRedoMatrix = kTRUE;
 };
 
 
-void StatisticalWeights::AddSpecies(const char *name,const char *formula, float priors){
+void StatisticalWeights::AddSpecies(const char *name,const char *formula, double priors){
   if(fNspecies == 100) return;
   
   fName[fNspecies] = new TString(name);
@@ -119,8 +120,8 @@ void StatisticalWeights::Init(){
     if(fMat) delete fMat;
     if(fMatInv) delete fMatInv;
     
-    fMat = new TMatrix(fNspecies,fNspecies);
-    fMatInv = new TMatrix(fNspecies,fNspecies);
+    fMat = new TMatrixD(fNspecies,fNspecies);
+    fMatInv = new TMatrixD(fNspecies,fNspecies);
 
     for(Int_t i=0; i < fNspecies; i++){
       for(int k=0; k < fSignalFilled[i];k++){
@@ -158,8 +159,8 @@ void StatisticalWeightsGaus::Init(){
     if(fMat) delete fMat;
     if(fMatInv) delete fMatInv;
     
-    fMat = new TMatrix(fNspecies,fNspecies);
-    fMatInv = new TMatrix(fNspecies,fNspecies);
+    fMat = new TMatrixD(fNspecies,fNspecies);
+    fMatInv = new TMatrixD(fNspecies,fNspecies);
   }
 
 
@@ -188,7 +189,7 @@ Double_t StatisticalWeights::GetScalarProduct(Int_t i, Int_t j){
   double res=1;
   for(int k=0;k < fSignalFilled[i];k++){
     if(! fMaskSignal[k]) continue;
-    Float_t x = fXmin + fXbin*0.5;
+    Double_t x = fXmin + fXbin*0.5;
     double integral=0;
     while(x < fXmax){
       integral += Eval(i,x,k)*Eval(j,x,k);
@@ -203,21 +204,21 @@ Double_t StatisticalWeights::GetScalarProduct(Int_t i, Int_t j){
 Double_t StatisticalWeightsGaus::GetScalarProduct(Int_t i, Int_t j){
   if(i >= GetNspecies() || j >= GetNspecies()) return 0;
 
-  float res=1;
+  double res=1;
   for(int k=0;k < fSignalFilled[i];k++){
     if(! fMaskSignal[k]) continue;
-   float sigmainv = sqrt(2./(fSigma[i][k]*fSigma[i][k]+fSigma[j][k]*fSigma[j][k]));
-    float nsigma = (fMean[i][k] - fMean[j][k])*sigmainv;
+   double sigmainv = sqrt(2./(fSigma[i][k]*fSigma[i][k]+fSigma[j][k]*fSigma[j][k]));
+    double nsigma = (fMean[i][k] - fMean[j][k])*sigmainv;
     res *= TMath::Exp(-nsigma*nsigma*0.25)*0.28209479*sigmainv;
   }
   return res;
 }
 
-Float_t StatisticalWeights::GetWeight(Int_t i, Float_t x){
+Double_t StatisticalWeights::GetWeight(Int_t i, Double_t x){
   if(i >= fNspecies) return 0;
   if(fToBeInitialized) Init();
 
-  Float_t weight = 0;
+  Double_t weight = 0;
   for(Int_t j=0; j < fNspecies; j++){
     //    printf("%f %f\n",(*fMatInv)[i][j], Eval(j,x));
     weight += (*fMatInv)[i][j] * Eval(j,x);
@@ -227,18 +228,25 @@ Float_t StatisticalWeights::GetWeight(Int_t i, Float_t x){
 }
 
 void StatisticalManager::Init(){
-  if (fNum < 1) return;
+  if (fNum < 1 || fNum > 0) return;
   if(fRedoMatrix){
+    fDeterminant = 1;
     if(fMat) delete fMat;
     if(fMatInv) delete fMatInv;
     fDiscriminators[0]->Init();
-    TMatrix *mm = fDiscriminators[0]->GetMatrix(); 
-    fMat = new TMatrix(fDiscriminators[0]->GetNspecies(),fDiscriminators[0]->GetNspecies());
+    TMatrixD *mm = fDiscriminators[0]->GetMatrix(); 
+    fMat = new TMatrixD(fDiscriminators[0]->GetNspecies(),fDiscriminators[0]->GetNspecies());
     *fMat = *mm;
-    fMatInv = new TMatrix(fDiscriminators[0]->GetNspecies(),fDiscriminators[0]->GetNspecies());
+    fMatInv = new TMatrixD(fDiscriminators[0]->GetNspecies(),fDiscriminators[0]->GetNspecies());
     
    for(int i=1; i < fNum; i++){
       fDiscriminators[i]->Init();    
+
+      if(fMat->Determinant() < 1E-1 || fMat->Determinant() > 1E1){
+        double det = fMat->Determinant();
+        fDeterminant *= det;
+        *fMat *= 1./det;       
+      }
 
       for(int ii=0; ii < fDiscriminators[i]->GetNspecies(); ii++)
 	for(int jj=0; jj < fDiscriminators[i]->GetNspecies(); jj++)
@@ -249,7 +257,7 @@ void StatisticalManager::Init(){
   (*fMatInv) = (*fMat);
   fMatInv->Invert();
   
-  if(fRedoMatrix && 0){
+  if(fRedoMatrix){
     fMat->Print();
     fMatInv->Print();
   }
@@ -257,25 +265,36 @@ void StatisticalManager::Init(){
   fRedoMatrix = kFALSE;
 }
 
-Float_t StatisticalManager::GetWeight(Int_t i, Float_t *x){
+Double_t StatisticalManager::GetWeight(Int_t i, Double_t *x){
   if(fToBeInitialized) Init();
-  Float_t weight = 0;
+
+  Double_t weight = 0;
+
+  if( fNum > 0 ){
+    for(int iDis=0; iDis < fNum; iDis++){
+      weight += fDiscriminators[iDis]->GetWeight(i, x[iDis]);
+    }
+
+    return weight/fNum;
+  }
+
   for(Int_t j=0; j < fDiscriminators[0]->GetNspecies(); j++){
-    float resp = 1;
+    double resp = 1;
     for(int iDis=0; iDis < fNum; iDis++){
       resp *= fDiscriminators[iDis]->Eval(j,x[iDis]);
     }
     weight += (*fMatInv)[i][j] * resp;
   }
-  return weight;
+//printf("det = %e %e\n",weight,fDeterminant);
+  return weight/fDeterminant;
 }
 
-Float_t StatisticalWeights::GetWeight(Int_t i, Float_t *x){
+Double_t StatisticalWeights::GetWeight(Int_t i, Double_t *x){
   if(i >= fNspecies) return 0;
   if(fToBeInitialized) Init();
-  Float_t weight = 0;
+  Double_t weight = 0;
   for(Int_t j=0; j < fNspecies; j++){
-    float val=1;
+    double val=1;
     for(int k=0;k < fSignalFilled[j];k++)
       if(fMaskSignal[k])
 	val *= Eval(j,x[k],k);
@@ -286,9 +305,9 @@ Float_t StatisticalWeights::GetWeight(Int_t i, Float_t *x){
   return weight;
 }
 
-Float_t StatisticalWeights::GetBayesWeight(Int_t i, Float_t x){
+Double_t StatisticalWeights::GetBayesWeight(Int_t i, Double_t x){
   if(i >= fNspecies) return 0;
-  Float_t sum = 0;
+  Double_t sum = 0;
   for(Int_t j=0; j < fNspecies; j++){  
     sum += fPriors[j] * this->Eval(j,x);
   }
@@ -297,12 +316,12 @@ Float_t StatisticalWeights::GetBayesWeight(Int_t i, Float_t x){
   return fPriors[i] * this->Eval(i,x)/sum;
 }
 
-Float_t StatisticalWeights::GetBayesWeight(Int_t i, Float_t *x){
+Double_t StatisticalWeights::GetBayesWeight(Int_t i, Double_t *x){
   if(i >= fNspecies) return 0;
-  Float_t sum = 0;
-  float cval = 1;
+  Double_t sum = 0;
+  double cval = 1;
   for(Int_t j=0; j < fNspecies; j++){
-    float val = 1;
+    double val = 1;
     for(int k=0;k < fSignalFilled[j];k++){
       if(! fMaskSignal[k]) continue;
       val *= this->Eval(j,x[k],k);     
@@ -316,19 +335,19 @@ Float_t StatisticalWeights::GetBayesWeight(Int_t i, Float_t *x){
   return fPriors[i] * cval/sum;
 }
 
-Float_t StatisticalWeights::Eval(Int_t i, Float_t x, Int_t isig){
+Double_t StatisticalWeights::Eval(Int_t i, Double_t x, Int_t isig){
   if(i >= fNspecies) return 0;
   if(isig >= fSignalFilled[i]) return 0;
   return fResponse[i][isig]->Eval(x);
 }
 
-void StatisticalWeights::SetPar(int isp, int par, float value, int isig){
+void StatisticalWeights::SetPar(int isp, int par, double value, int isig){
   if(isp >= fNspecies) return;
   fResponse[isp][isig]->SetParameter(par,value);
   fToBeInitialized = kTRUE;
 }
 
-void StatisticalWeightsGaus::SetPar(int isp, int par, float value, int isig){
+void StatisticalWeightsGaus::SetPar(int isp, int par, double value, int isig){
   if(isp >= fNspecies) return;
   if(par == 1) fMean[isp][isig] = value;
   else if(par == 2){
@@ -339,7 +358,7 @@ void StatisticalWeightsGaus::SetPar(int isp, int par, float value, int isig){
   fToBeInitialized = kTRUE;
 }
 
-void StatisticalWeightsGaus::AddSignal(int species,float *par){
+void StatisticalWeightsGaus::AddSignal(int species,double *par){
   if(species >= fNspecies || fSignalFilled[species]==100) return;
 
   SetResponse(species,fSignalFilled[species], new TF1(Form("f_%s_%d",GetName(species),fSignalFilled[species]),"TMath::Gaus(x,[1],[2])"));
@@ -357,7 +376,7 @@ void StatisticalWeightsGaus::AddSignal(int species,float *par){
 
 }
 
-void StatisticalWeights::AddSpecies(const char *name,float *par, float priors){
+void StatisticalWeights::AddSpecies(const char *name,double *par, double priors){
   if(fNspecies == 100) return;
   
   fName[fNspecies] = new TString(name);
